@@ -1,5 +1,6 @@
 #include <Adafruit_NeoPixel.h>
 #include <QMC5883LCompass.h>
+#include <math.h>
 
 #define RING_PIN 5
 #define NUMPIXELS 12
@@ -7,6 +8,7 @@
 #define EAST 3
 #define SOUTH 6
 #define WEST 9
+#define RADIANS 57.2958
 
 Adafruit_NeoPixel pixels =
     Adafruit_NeoPixel(NUMPIXELS, RING_PIN, NEO_GRB + NEO_KHZ800);
@@ -42,11 +44,18 @@ void setup() {
 
 uint32_t get_compass_interval(int azimuth) {
   unsigned long a = (azimuth > -0.5) ? azimuth / 30.0 : (azimuth + 360) / 30.0;
-  Serial.print(a);
   unsigned long r = a - (int)a;
   byte sexdec = 0;
   sexdec = (r >= .5) ? ceil(a) : floor(a);
   return sexdec;
+}
+
+float get_lat_direction(float my_lat, float other_lat) {
+  return other_lat - my_lat;
+}
+
+float get_long_direction(float my_long, float other_long) {
+  return other_long - my_long;
 }
 
 void set_LED_direction(uint32_t compass_interval) {
@@ -59,9 +68,12 @@ void set_LED_direction(uint32_t compass_interval) {
   pixels.show();
 }
 
-int get_compass_interval() {
+float get_compass_azimuth() {
   compass.read();
-  az = compass.getAzimuth();
+  return compass.getAzimuth();
+}
+
+int get_compass_interval() {
   compass_interval = get_compass_interval(az);
 
   Serial.print(" Azimuth: ");
@@ -75,8 +87,28 @@ int get_compass_interval() {
   return compass_interval;
 }
 
+float get_azimuth_lat_long(float lat_dir, float long_dir) {
+  float cos_theta = lat_dir / (lat_dir * lat_dir + long_dir * long_dir);
+  return acos(cos_theta) * RADIANS;
+}
+
 void loop() {
-  compass_interval = get_compass_interval();
+  float my_lat = 20;
+  float my_long = 20;
+  float other_lat = 30;
+  float other_long = 50;
+
+  float lat_dir = get_lat_direction(my_lat, other_lat);
+  float long_dir = get_long_direction(my_long, other_long);
+  Serial.print(" lat_dir: ");
+  Serial.print(lat_dir);
+  Serial.print(" long_dir: ");
+  Serial.print(long_dir);
+
+  az = get_azimuth_lat_long(lat_dir, long_dir);
+  // az = get_compass_azimuth();
+
+  compass_interval = get_compass_interval(az);
   set_LED_direction(compass_interval);
   delay(100);
 }
