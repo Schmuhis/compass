@@ -82,13 +82,11 @@ int get_compass_interval() {
   Serial.print(" Interval: ");
   Serial.print(compass_interval);
 
-  Serial.println();
-
   return compass_interval;
 }
 
 float get_azimuth_lat_long(float lat_dir, float long_dir) {
-  float cos_theta = lat_dir / (lat_dir * lat_dir + long_dir * long_dir);
+  float cos_theta = lat_dir / sqrt(lat_dir * lat_dir + long_dir * long_dir);
   return acos(cos_theta) * RADIANS;
 }
 
@@ -104,6 +102,7 @@ void loop() {
   Serial.print(lat_dir);
   Serial.print(" long_dir: ");
   Serial.print(long_dir);
+  Serial.println();
 
   az = get_azimuth_lat_long(lat_dir, long_dir);
   // az = get_compass_azimuth();
