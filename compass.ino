@@ -6,11 +6,9 @@
 
 #define RING_PIN 12
 #define NUMPIXELS 12
-#define NORTH 0
-#define EAST 3
-#define SOUTH 6
-#define WEST 9
-#define RADIANS 57.2958
+#define RADIANS 180.0 / PI
+#define SCALE 1000
+#define N_INTERVALS 4
 
 Adafruit_NeoPixel pixels =
     Adafruit_NeoPixel(NUMPIXELS, RING_PIN, NEO_GRB + NEO_KHZ800);
@@ -25,18 +23,18 @@ uint32_t background_colour = pixels.Color(232, 128, 30);
 const char *GAME_PHASE = "UNKOWN";
 const char *UUID = "febc6409-0ba1-47f0-bca4-a75ec5888aa9";
 const char *CONNECT_ID = "espCompass_db1a60b8_connect";
-uint32_t i, j = 0, k;
+int i, j = 0, k;
 uint32_t compass_interval;
 const char *CONNECTION_STATE = "UNKNOWN";
 
-const char *ssid = "Techbase Guest";
+const char *ssid = "Db Shop";
 const char *password = "Hackaburg25";
 const char *websocket_server =
     "hide-and-seek-unxw.onrender.com"; // Example secure WebSocket server
 // const char* websocket_server = "echo.websocket.events";
 
-float hider_lat = 50;
-float hider_long = 0;
+float hider_lat = 50; // 90 degree for +, 270 for -
+float hider_long = 0; // 0 degree for +, 180 for -
 float seeker_lat = 0;
 float seeker_long = 0;
 
@@ -141,27 +139,43 @@ void setup() {
 }
 
 uint32_t get_compass_interval(int azimuth) {
-  azimuth = -1 * azimuth - 30;
-  unsigned long a = (azimuth >= 0) ? azimuth / 90.0 : (azimuth + 360) / 90.0;
+  azimuth = azimuth - 60;
+  unsigned long a = (azimuth >= 0) ? azimuth / (360.0 / N_INTERVALS) : (azimuth + 360) / 360.0 / N_INTERVALS;
   unsigned long r = a - (int)a;
   byte sexdec = 0;
   sexdec = (r >= .5) ? ceil(a) : floor(a);
   return sexdec;
 }
 
-float get_lat_direction(float my_lat, float other_lat) {
-  return other_lat - my_lat;
+float get_lat_direction(float my_lat, float other_lat, bool scaled) {
+  float dist = other_lat - my_lat;
+  float scaled_dist = other_lat * SCALE - my_lat * SCALE;
+  if (scaled)
+    return scaled_dist;
+  else
+    return dist;
 }
 
-float get_long_direction(float my_long, float other_long) {
-  return other_long - my_long;
+float get_long_direction(float my_long, float other_long, bool scaled) {
+  float dist = other_long - my_long;
+  float scaled_dist = other_long * SCALE - my_long * SCALE;
+  if (scaled)
+    return scaled_dist;
+  else
+    return dist;
 } //
 
 void set_LED_direction(uint32_t compass_interval) {
   for (i = 0; i < NUMPIXELS; i++)
     pixels.setPixelColor(i, blue);
-  for (i = 0; i < 3; i++)
-    pixels.setPixelColor(compass_interval * 3 + i, red);
+  int len = NUMPIXELS / N_INTERVALS;
+  compass_interval = len - compass_interval - 1;
+
+  for (i = - floor(0.5 * len); i < ceil(0.5 * len); i++) {
+    int pixel = compass_interval * (NUMPIXELS / N_INTERVALS) + i;
+    pixel = (pixel - 3 + NUMPIXELS) % NUMPIXELS;
+    pixels.setPixelColor(pixel, red);
+  }
   pixels.show();
 }
 
@@ -172,18 +186,28 @@ float get_compass_azimuth() {
 
 float get_azimuth_lat_long(float lat_dir, float long_dir) {
   float cos_theta = long_dir / sqrt(lat_dir * lat_dir + long_dir * long_dir);
-  return acos(cos_theta) * RADIANS;
+  float theta = acosf(cos_theta) * RADIANS;
+  if (lat_dir < 0.0) {
+    theta = 360.0 - theta;
+  }
+  return theta;
 }
 
 uint32_t get_compass_interval_for_dir(float hider_lat, float hider_long,
                                       float seeker_lat, float seeker_long) {
-  float lat_dir = get_lat_direction(seeker_lat, hider_lat);
-  float long_dir = get_long_direction(seeker_long, hider_long);
+  float lat_dir_scaled = get_lat_direction(seeker_lat, hider_lat, 1);
+  float long_dir_scaled = get_long_direction(seeker_long, hider_long, 1);
+  float lat_dir = get_lat_direction(seeker_lat, hider_lat, 0);
+  float long_dir = get_long_direction(seeker_long, hider_long, 0);
 
+  float lat_long_az_scaled =
+      get_azimuth_lat_long(lat_dir_scaled, long_dir_scaled);
   float lat_long_az = get_azimuth_lat_long(lat_dir, long_dir);
+  // Serial.printf("Scaled: %.8f \tnicht scaled: %.8f\n", lat_long_az_scaled,
+  //               lat_long_az);
   int az = get_compass_azimuth();
 
-  float compass_az = lat_long_az + az;
+  float compass_az = lat_long_az_scaled + az + 270;
   compass_az = compass_az > 360 ? compass_az - 360 : compass_az;
 
   return get_compass_interval(compass_az);
@@ -202,7 +226,8 @@ void show_disconnecting_LEDs() {
 }
 
 void handle_LED() {
-  if (CONNECTION_STATE == "CONNECTED") {
+  // if (CONNECTION_STATE == "CONNECTED") {
+  if(1) {
     compass_interval = get_compass_interval_for_dir(hider_lat, hider_long,
                                                     seeker_lat, seeker_long);
     set_LED_direction(compass_interval);
@@ -213,5 +238,5 @@ void handle_LED() {
 
 void loop() {
   handle_LED();
-  webSocket.loop();
+  // webSocket.loop();
 }
