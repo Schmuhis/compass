@@ -48,14 +48,6 @@ void sendCompassMoinRequest() {
   Serial.println("WebSocket Connected");
   Serial.println("Trying to register to Hide-n-Seek Websocket");
 
-  //   RECEIVE_MESSAGE {
-  //   "id": "1",
-  //   "message": {
-  //     "type": "moinMoinResponse",
-  //     "value": {}
-  //   }
-  // }
-  // ich schick ID mit und muss darauf hören, um zu wissen, dass ich connected bin
   JsonDocument doc;
   doc["id"] = CONNECT_ID;
   doc["message"]["type"] = "compassMoinRequest";
@@ -67,10 +59,7 @@ void sendCompassMoinRequest() {
 
 void handleUpdateStateEvent(JsonDocument updateEvent) {
   
-  GAME_PHASE = updateEvent["message"]["value"]["state"]["room"]["gamePhase"];
-  Serial.print("Current Game Phase: ");
-  Serial.println(GAME_PHASE);
-  if(GAME_PHASE == "lobby"){ //change to seeking for prod
+  if(updateEvent["message"]["value"]["state"]["room"]["gamePhase"] == "lobby"){ //change to seeking for prod
     String hiderId = updateEvent["message"]["value"]["state"]["room"]["hiderId"];
     String hiderPosition = updateEvent["message"]["value"]["state"]["room"]["positions"];
     hider_long = updateEvent["message"]["value"]["state"]["room"]["positions"][hiderPosition]["long"];
