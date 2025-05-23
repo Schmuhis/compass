@@ -4,7 +4,7 @@
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 
-#define RING_PIN 5
+#define RING_PIN 12
 #define NUMPIXELS 12
 #define NORTH 0
 #define EAST 3
@@ -20,11 +20,12 @@ uint32_t red = pixels.Color(255, 0, 0);
 uint32_t green = pixels.Color(0, 255, 0);
 uint32_t blue = pixels.Color(0, 0, 255);
 uint32_t snake_colour = pixels.Color(144, 1, 122);
+uint32_t background_colour = pixels.Color(232, 128, 30);
 
 const char* GAME_PHASE = "UNKOWN";
 const char* UUID = "db1a60b8-02dd-47cf-8a7d-40f2bfc4f33e";
 const char* CONNECT_ID = "espCompass_db1a60b8_connect";
-uint32_t i;
+uint32_t i, j = 0, k;
 uint32_t compass_interval;
 const char* CONNECTION_STATE = "UNKNOWN";
 
@@ -177,10 +178,29 @@ uint32_t get_compass_interval_for_dir(float hider_lat, float hider_long,
   return get_compass_interval(compass_az);
 }
 
-void loop() {
+void show_disconnecting_LEDs() {
+  for (i = 0; i < NUMPIXELS; i++) {
+    pixels.setPixelColor(i, background_colour);
+  }
+  for (k = 0; k < 3; k++) {
+    pixels.setPixelColor((j + k + 1) % NUMPIXELS, snake_colour);
+  }
+  pixels.show();
+  j = (j + 1) % NUMPIXELS;
+  delay(100);
+}
 
-  compass_interval = get_compass_interval_for_dir(hider_lat, hider_long,
-                                                  seeker_lat, seeker_long);
-  set_LED_direction(compass_interval);
+void handle_LED() {
+  if (CONNECTION_STATE != "CONNECTED") {
+    compass_interval = get_compass_interval_for_dir(hider_lat, hider_long,
+                                                    seeker_lat, seeker_long);
+    set_LED_direction(compass_interval);
+  } else {
+    show_disconnecting_LEDs();
+  }
+}
+
+void loop() {
+  handle_LED();
   webSocket.loop();
 }
