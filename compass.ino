@@ -8,7 +8,7 @@
 #define NUMPIXELS 12
 #define RADIANS 180.0 / PI
 #define SCALE 1000
-#define N_INTERVALS 4
+#define N_INTERVALS 12
 
 Adafruit_NeoPixel pixels =
     Adafruit_NeoPixel(NUMPIXELS, RING_PIN, NEO_GRB + NEO_KHZ800);
@@ -140,7 +140,7 @@ void setup() {
 
 uint32_t get_compass_interval(int azimuth) {
   azimuth = azimuth - 60;
-  unsigned long a = (azimuth >= 0) ? azimuth / (360.0 / N_INTERVALS) : (azimuth + 360) / 360.0 / N_INTERVALS;
+  unsigned long a = (azimuth >= 0) ? azimuth / (360.0 / N_INTERVALS) : (azimuth + 360) / (360.0 / N_INTERVALS);
   unsigned long r = a - (int)a;
   byte sexdec = 0;
   sexdec = (r >= .5) ? ceil(a) : floor(a);
@@ -169,13 +169,15 @@ void set_LED_direction(uint32_t compass_interval) {
   for (i = 0; i < NUMPIXELS; i++)
     pixels.setPixelColor(i, blue);
   int len = NUMPIXELS / N_INTERVALS;
-  compass_interval = len - compass_interval - 1;
+  // compass_interval = len - compass_interval - 1;
 
   for (i = - floor(0.5 * len); i < ceil(0.5 * len); i++) {
-    int pixel = compass_interval * (NUMPIXELS / N_INTERVALS) + i;
+    int pixel = compass_interval * len + i;
+    Serial.println(pixel);
     pixel = (pixel - 3 + NUMPIXELS) % NUMPIXELS;
     pixels.setPixelColor(pixel, red);
   }
+  Serial.println();
   pixels.show();
 }
 
