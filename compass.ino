@@ -128,11 +128,6 @@ uint32_t get_compass_interval_for_dir(float hider_lat, float hider_long,
                                       float seeker_lat, float seeker_long) {
   float lat_dir = get_lat_direction(seeker_lat, hider_lat);
   float long_dir = get_long_direction(seeker_long, hider_long);
-  Serial.print(" lat_dir: ");
-  Serial.print(lat_dir);
-  Serial.print(" long_dir: ");
-  Serial.print(long_dir);
-  Serial.println();
 
   float lat_long_az = get_azimuth_lat_long(lat_dir, long_dir);
   int az = get_compass_azimuth();
