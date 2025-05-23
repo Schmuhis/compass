@@ -1,6 +1,8 @@
 #include <Adafruit_NeoPixel.h>
 #include <QMC5883LCompass.h>
 #include <math.h>
+#include <WebSocketsClient.h>
+#include <ArduinoJson.h>
 
 #define RING_PIN 5
 #define NUMPIXELS 12
@@ -11,7 +13,7 @@
 #define RADIANS 57.2958
 
 Adafruit_NeoPixel pixels =
-    Adafruit_NeoPixel(NUMPIXELS, RING_PIN, NEO_GRB + NEO_KHZ800);
+  Adafruit_NeoPixel(NUMPIXELS, RING_PIN, NEO_GRB + NEO_KHZ800);
 
 uint32_t white = pixels.Color(255, 255, 255);
 uint32_t red = pixels.Color(255, 0, 0);
@@ -19,12 +21,45 @@ uint32_t green = pixels.Color(0, 255, 0);
 uint32_t blue = pixels.Color(0, 0, 255);
 uint32_t snake_colour = pixels.Color(144, 1, 122);
 
+const char* UUID = "db1a60b8-02dd-47cf-8a7d-40f2bfc4f33e";
+
 uint32_t i;
-int az; // azimuth
+int az;  // azimuth
 uint32_t compass_interval;
 
-QMC5883LCompass compass;
+const char* ssid = "Techbase Guest";
+const char* password = "Hackaburg25";
+const char* websocket_server = "echo.websocket.events";  // Example secure WebSocket server
 
+
+QMC5883LCompass compass;
+WebSocketsClient webSocket;
+
+void sendCompassMoinRequest() {
+  // Construct CompassMoinRequest
+  Serial.println("WebSocket Connected");
+  Serial.println("Trying to register to Hide-n-Seek Websocket");
+  JsonDocument doc;
+  doc["userId"] = UUID;
+  String registrationJsonChar;
+  serializeJson(doc, registrationJsonChar);
+  webSocket.sendTXT(registrationJsonChar);
+}
+
+void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
+  switch (type) {
+    case WStype_DISCONNECTED:
+      Serial.println("WebSocket Disconnected");
+      break;
+    case WStype_CONNECTED:
+      sendCompassMoinRequest();
+      // webSocket.sendTXT("Hello");
+      break;
+    case WStype_TEXT:
+      Serial.printf("Received: %s\n", payload);
+      break;
+  }
+}
 void init_compass() {
   compass.init();
   compass.setCalibrationOffsets(-161.00, 515.00, -503.00);
@@ -40,6 +75,19 @@ void setup() {
   Serial.begin(9600);
   init_compass();
   init_LED_ring();
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
+
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connected");
+
+  webSocket.beginSSL(websocket_server, 443, "/");  // WSS
+  webSocket.onEvent(webSocketEvent);
+  webSocket.setReconnectInterval(5000);
 }
 
 uint32_t get_compass_interval(int azimuth) {
@@ -110,4 +158,5 @@ void loop() {
   compass_interval = get_compass_interval(az);
   set_LED_direction(compass_interval);
   delay(100);
+  webSocket.loop();
 }
