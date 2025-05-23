@@ -21,14 +21,23 @@ uint32_t green = pixels.Color(0, 255, 0);
 uint32_t blue = pixels.Color(0, 0, 255);
 uint32_t snake_colour = pixels.Color(144, 1, 122);
 
+const char* GAME_PHASE = "UNKOWN";
 const char* UUID = "db1a60b8-02dd-47cf-8a7d-40f2bfc4f33e";
-
+const char* CONNECT_ID = "espCompass_db1a60b8_connect";
 uint32_t i;
 uint32_t compass_interval;
+const char* CONNECTION_STATE = "UNKNOWN";
 
 const char* ssid = "Techbase Guest";
 const char* password = "Hackaburg25";
-const char* websocket_server = "echo.websocket.events";  // Example secure WebSocket server
+const char* websocket_server = "hide-and-seek-unxw.onrender.com";  // Example secure WebSocket server
+// const char* websocket_server = "echo.websocket.events";
+
+
+float hider_lat = 20;
+float hider_long = 20;
+float seeker_lat = 30;
+float seeker_long = 50;
 
 
 QMC5883LCompass compass;
@@ -38,11 +47,51 @@ void sendCompassMoinRequest() {
   // Construct CompassMoinRequest
   Serial.println("WebSocket Connected");
   Serial.println("Trying to register to Hide-n-Seek Websocket");
+
+  //   RECEIVE_MESSAGE {
+  //   "id": "1",
+  //   "message": {
+  //     "type": "moinMoinResponse",
+  //     "value": {}
+  //   }
+  // }
+  // ich schick ID mit und muss darauf hören, um zu wissen, dass ich connected bin
   JsonDocument doc;
-  doc["userId"] = UUID;
+  doc["id"] = CONNECT_ID;
+  doc["message"]["type"] = "compassMoinRequest";
+  doc["message"]["value"]["userId"] = UUID;
   String registrationJsonChar;
   serializeJson(doc, registrationJsonChar);
   webSocket.sendTXT(registrationJsonChar);
+}
+
+void handleUpdateStateEvent(JsonDocument updateEvent) {
+  
+  GAME_PHASE = updateEvent["message"]["value"]["state"]["room"]["gamePhase"];
+  Serial.print("Current Game Phase: ");
+  Serial.println(GAME_PHASE);
+  if(GAME_PHASE == "lobby"){ //change to seeking for prod
+    String hiderId = updateEvent["message"]["value"]["state"]["room"]["hiderId"];
+    String hiderPosition = updateEvent["message"]["value"]["state"]["room"]["positions"];
+    hider_long = updateEvent["message"]["value"]["state"]["room"]["positions"][hiderPosition]["long"];
+    hider_lat = updateEvent["message"]["value"]["state"]["room"]["positions"][hiderPosition]["lat"];
+    seeker_long = updateEvent["message"]["value"]["state"]["room"]["positions"][UUID]["long"];
+    seeker_lat = updateEvent["message"]["value"]["state"]["room"]["positions"][UUID]["lat"];
+    Serial.println("Updated Location Stats");
+  }
+}
+
+void handleResponse(uint8_t* payload) {
+  JsonDocument doc;
+  deserializeJson(doc, payload);
+  if (doc["id"] == CONNECT_ID && CONNECTION_STATE != "CONNECTED") {
+    Serial.println("Received same connect id, switching connection state to 'CONNECTED'");
+    CONNECTION_STATE = "CONNECTED";
+  }
+
+  if (doc["message"]["type"] == "updateStateEvent") {
+    handleUpdateStateEvent(doc);
+  }
 }
 
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
@@ -52,10 +101,11 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
       break;
     case WStype_CONNECTED:
       sendCompassMoinRequest();
-      // webSocket.sendTXT("Hello");
       break;
     case WStype_TEXT:
-      Serial.printf("Received: %s\n", payload);
+      // Serial.printf("Received: %s\n", payload);
+      handleResponse(payload);
+
       break;
   }
 }
@@ -83,7 +133,7 @@ void setup() {
   }
   Serial.println("\nWiFi connected");
 
-  webSocket.beginSSL(websocket_server, 443, "/");  // WSS
+  webSocket.beginSSL(websocket_server, 443, "/api/websocket");  // WSS
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000);
 }
@@ -102,7 +152,7 @@ float get_lat_direction(float my_lat, float other_lat) {
 
 float get_long_direction(float my_long, float other_long) {
   return other_long - my_long;
-} //
+}  //
 
 void set_LED_direction(uint32_t compass_interval) {
   for (i = 0; i < NUMPIXELS; i++) {
@@ -139,10 +189,6 @@ uint32_t get_compass_interval_for_dir(float hider_lat, float hider_long,
 }
 
 void loop() {
-  float hider_lat = 20;
-  float hider_long = 20;
-  float seeker_lat = 30;
-  float seeker_long = 50;
 
   compass_interval = get_compass_interval_for_dir(hider_lat, hider_long,
                                                   seeker_lat, seeker_long);
