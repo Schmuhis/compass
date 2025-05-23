@@ -23,7 +23,7 @@ uint32_t snake_colour = pixels.Color(144, 1, 122);
 uint32_t background_colour = pixels.Color(232, 128, 30);
 
 const char *GAME_PHASE = "UNKOWN";
-const char *UUID = "db1a60b8-02dd-47cf-8a7d-40f2bfc4f33e";
+const char *UUID = "febc6409-0ba1-47f0-bca4-a75ec5888aa9";
 const char *CONNECT_ID = "espCompass_db1a60b8_connect";
 uint32_t i, j = 0, k;
 uint32_t compass_interval;
@@ -35,7 +35,7 @@ const char *websocket_server =
     "hide-and-seek-unxw.onrender.com"; // Example secure WebSocket server
 // const char* websocket_server = "echo.websocket.events";
 
-float hider_lat = 10;
+float hider_lat = 50;
 float hider_long = 0;
 float seeker_lat = 0;
 float seeker_long = 0;
@@ -60,20 +60,25 @@ void sendCompassMoinRequest() {
 void handleUpdateStateEvent(JsonDocument updateEvent) {
 
   if (updateEvent["message"]["value"]["state"]["room"]["gamePhase"] ==
-      "lobby") { // change to seeking for prod
+      "seeking") { // change to seeking for prod
     String hiderId =
         updateEvent["message"]["value"]["state"]["room"]["hiderId"];
-    String hiderPosition =
-        updateEvent["message"]["value"]["state"]["room"]["positions"];
     hider_long = updateEvent["message"]["value"]["state"]["room"]["positions"]
-                            [hiderPosition]["long"];
+                            [hiderId]["long"];
     hider_lat = updateEvent["message"]["value"]["state"]["room"]["positions"]
-                           [hiderPosition]["lat"];
+                           [hiderId]["lat"];
     seeker_long = updateEvent["message"]["value"]["state"]["room"]["positions"]
                              [UUID]["long"];
     seeker_lat = updateEvent["message"]["value"]["state"]["room"]["positions"]
                             [UUID]["lat"];
-    Serial.println("Updated Location Stats");
+    Serial.print("Updated Location Stats, Hider:");
+    Serial.printf("%f.8", hider_lat);
+    Serial.print(", ");
+    Serial.printf("%f.8", hider_long);
+    Serial.print(", Seeker");
+    Serial.printf("%f.8", seeker_lat);
+    Serial.print(", ");
+    Serial.printf("%f.8\n", seeker_long);
   }
 }
 
@@ -108,8 +113,8 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length) {
 }
 void init_compass() {
   compass.init();
-  compass.setCalibrationOffsets(-974.00, -1765.00, 8.00);
-  compass.setCalibrationScales(1.28, 0.71, 1.25);
+  compass.setCalibrationOffsets(-242.00, -2.00, -815.00);
+  compass.setCalibrationScales(0.99, 0.95, 1.07);
 }
 
 void init_LED_ring() {
@@ -136,7 +141,8 @@ void setup() {
 }
 
 uint32_t get_compass_interval(int azimuth) {
-  unsigned long a = (azimuth > -0.5) ? azimuth / 90.0 : (azimuth + 360) / 90.0;
+  azimuth = -1 * azimuth - 30;
+  unsigned long a = (azimuth >= 0) ? azimuth / 90.0 : (azimuth + 360) / 90.0;
   unsigned long r = a - (int)a;
   byte sexdec = 0;
   sexdec = (r >= .5) ? ceil(a) : floor(a);
@@ -165,7 +171,7 @@ float get_compass_azimuth() {
 }
 
 float get_azimuth_lat_long(float lat_dir, float long_dir) {
-  float cos_theta = lat_dir / sqrt(lat_dir * lat_dir + long_dir * long_dir);
+  float cos_theta = long_dir / sqrt(lat_dir * lat_dir + long_dir * long_dir);
   return acos(cos_theta) * RADIANS;
 }
 
@@ -196,8 +202,7 @@ void show_disconnecting_LEDs() {
 }
 
 void handle_LED() {
-  // if (CONNECTION_STATE != "CONNECTED") {
-  if (1) {
+  if (CONNECTION_STATE == "CONNECTED") {
     compass_interval = get_compass_interval_for_dir(hider_lat, hider_long,
                                                     seeker_lat, seeker_long);
     set_LED_direction(compass_interval);
