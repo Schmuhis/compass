@@ -74,7 +74,6 @@ void setup() {
   Serial.begin(9600);
   init_compass();
   init_LED_ring();
-  Serial.begin(115200);
   WiFi.begin(ssid, password);
 
   Serial.print("Connecting to WiFi");
