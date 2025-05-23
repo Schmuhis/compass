@@ -24,7 +24,6 @@ uint32_t snake_colour = pixels.Color(144, 1, 122);
 const char* UUID = "db1a60b8-02dd-47cf-8a7d-40f2bfc4f33e";
 
 uint32_t i;
-int az;  // azimuth
 uint32_t compass_interval;
 
 const char* ssid = "Techbase Guest";
@@ -104,7 +103,7 @@ float get_lat_direction(float my_lat, float other_lat) {
 
 float get_long_direction(float my_long, float other_long) {
   return other_long - my_long;
-}
+} //
 
 void set_LED_direction(uint32_t compass_interval) {
   for (i = 0; i < NUMPIXELS; i++) {
@@ -121,42 +120,38 @@ float get_compass_azimuth() {
   return compass.getAzimuth();
 }
 
-int get_compass_interval() {
-  compass_interval = get_compass_interval(az);
-
-  Serial.print(" Azimuth: ");
-  Serial.print(az);
-
-  Serial.print(" Interval: ");
-  Serial.print(compass_interval);
-
-  return compass_interval;
-}
-
 float get_azimuth_lat_long(float lat_dir, float long_dir) {
   float cos_theta = lat_dir / sqrt(lat_dir * lat_dir + long_dir * long_dir);
   return acos(cos_theta) * RADIANS;
 }
 
-void loop() {
-  float my_lat = 20;
-  float my_long = 20;
-  float other_lat = 30;
-  float other_long = 50;
-
-  float lat_dir = get_lat_direction(my_lat, other_lat);
-  float long_dir = get_long_direction(my_long, other_long);
+uint32_t get_compass_interval_for_dir(float hider_lat, float hider_long,
+                                      float seeker_lat, float seeker_long) {
+  float lat_dir = get_lat_direction(seeker_lat, hider_lat);
+  float long_dir = get_long_direction(seeker_long, hider_long);
   Serial.print(" lat_dir: ");
   Serial.print(lat_dir);
   Serial.print(" long_dir: ");
   Serial.print(long_dir);
   Serial.println();
 
-  az = get_azimuth_lat_long(lat_dir, long_dir);
-  // az = get_compass_azimuth();
+  float lat_long_az = get_azimuth_lat_long(lat_dir, long_dir);
+  int az = get_compass_azimuth();
 
-  compass_interval = get_compass_interval(az);
+  float compass_az = lat_long_az + az;
+  compass_az = compass_az > 360 ? compass_az - 360 : compass_az;
+
+  return get_compass_interval(compass_az);
+}
+
+void loop() {
+  float hider_lat = 20;
+  float hider_long = 20;
+  float seeker_lat = 30;
+  float seeker_long = 50;
+
+  compass_interval = get_compass_interval_for_dir(hider_lat, hider_long,
+                                                  seeker_lat, seeker_long);
   set_LED_direction(compass_interval);
-  delay(100);
   webSocket.loop();
 }
