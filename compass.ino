@@ -9,7 +9,7 @@
 #define RADIANS 180.0 / PI
 #define SCALE 1000
 #define N_INTERVALS 12
-#define OFFSET -2
+#define OFFSET 1
 
 Adafruit_NeoPixel pixels =
     Adafruit_NeoPixel(NUMPIXELS, RING_PIN, NEO_GRB + NEO_KHZ800);
@@ -28,7 +28,7 @@ int i, j = 0, k;
 uint32_t compass_interval;
 const char *CONNECTION_STATE = "UNKNOWN";
 
-const char *ssid = "Db Shop";
+const char *ssid = "Techbase Guest";
 const char *password = "Hackaburg25";
 const char *websocket_server =
     "hide-and-seek-unxw.onrender.com"; // Example secure WebSocket server
@@ -142,6 +142,7 @@ void setup() {
 }
 
 uint32_t get_compass_interval(int azimuth) {
+  azimuth *= -1;
   unsigned long a = (azimuth >= 0) ? azimuth / (360.0 / N_INTERVALS) : (azimuth + 360) / (360 / N_INTERVALS);
   unsigned long r = a - (int)a;
   byte sexdec = 0;
@@ -181,8 +182,8 @@ float get_azimuth_lat_long(double lat_dir, double long_dir) {
   float theta = acos(cos_theta) * RADIANS;
   if (lat_dir < 0.0) {
     theta = 360.0 - theta;
-  g
-g return -theta;
+  }
+  return theta;
 }
 
 uint32_t get_compass_interval_for_dir(double hl, double hlo,
@@ -202,7 +203,7 @@ uint32_t get_compass_interval_for_dir(double hl, double hlo,
       get_azimuth_lat_long(lat_dir_scaled, long_dir_scaled);
   int az = get_compass_azimuth();
 
-  float compass_az = lat_long_az_scaled + az + 270;
+  float compass_az = lat_long_az_scaled + az;
   compass_az = compass_az > 360 ? compass_az - 360 : compass_az;
 
   return get_compass_interval(compass_az);
