@@ -148,7 +148,7 @@ uint32_t get_compass_interval(int azimuth) {
   return sexdec;
 }
 
-float get_lat_direction(float my_lat, float other_lat, bool scaled) {
+float get_direction(float my_lat, float other_lat, bool scaled) {
   float dist = other_lat - my_lat;
   float scaled_dist = other_lat * SCALE - my_lat * SCALE;
   if (scaled)
@@ -157,20 +157,10 @@ float get_lat_direction(float my_lat, float other_lat, bool scaled) {
     return dist;
 }
 
-float get_long_direction(float my_long, float other_long, bool scaled) {
-  float dist = other_long - my_long;
-  float scaled_dist = other_long * SCALE - my_long * SCALE;
-  if (scaled)
-    return scaled_dist;
-  else
-    return dist;
-} //
-
 void set_LED_direction(uint32_t compass_interval) {
   for (i = 0; i < NUMPIXELS; i++)
     pixels.setPixelColor(i, blue);
   int len = NUMPIXELS / N_INTERVALS;
-  // compass_interval = len - compass_interval - 1;
 
   for (i = - floor(0.5 * len) - 1; i < ceil(0.5 * len) + 1; i++) {
     int pixel = compass_interval * len + i;
@@ -196,16 +186,11 @@ float get_azimuth_lat_long(float lat_dir, float long_dir) {
 
 uint32_t get_compass_interval_for_dir(float hider_lat, float hider_long,
                                       float seeker_lat, float seeker_long) {
-  float lat_dir_scaled = get_lat_direction(seeker_lat, hider_lat, 1);
+  float lat_dir_scaled = get_direction(seeker_lat, hider_lat, 1);
   float long_dir_scaled = get_long_direction(seeker_long, hider_long, 1);
-  float lat_dir = get_lat_direction(seeker_lat, hider_lat, 0);
-  float long_dir = get_long_direction(seeker_long, hider_long, 0);
 
   float lat_long_az_scaled =
       get_azimuth_lat_long(lat_dir_scaled, long_dir_scaled);
-  float lat_long_az = get_azimuth_lat_long(lat_dir, long_dir);
-  // Serial.printf("Scaled: %.8f \tnicht scaled: %.8f\n", lat_long_az_scaled,
-  //               lat_long_az);
   int az = get_compass_azimuth();
 
   float compass_az = lat_long_az_scaled + az + 270;
