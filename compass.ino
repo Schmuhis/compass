@@ -9,6 +9,7 @@
 #define RADIANS 180.0 / PI
 #define SCALE 1000
 #define N_INTERVALS 12
+#define OFFSET -2
 
 Adafruit_NeoPixel pixels =
     Adafruit_NeoPixel(NUMPIXELS, RING_PIN, NEO_GRB + NEO_KHZ800);
@@ -33,8 +34,8 @@ const char *websocket_server =
     "hide-and-seek-unxw.onrender.com"; // Example secure WebSocket server
 // const char* websocket_server = "echo.websocket.events";
 
-float hider_lat = 50; // 90 degree for +, 270 for -
-float hider_long = 0; // 0 degree for +, 180 for -
+float hider_lat = 0; // 90 degree for +, 270 for -
+float hider_long = 50; // 0 degree for +, 180 for -
 float seeker_lat = 0;
 float seeker_long = 0;
 
@@ -111,8 +112,8 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length) {
 }
 void init_compass() {
   compass.init();
-  compass.setCalibrationOffsets(-242.00, -2.00, -815.00);
-  compass.setCalibrationScales(0.99, 0.95, 1.07);
+  compass.setCalibrationOffsets(-486.00, 369.00, 278.00);
+  compass.setCalibrationScales(1.03, 0.97, 1.01);
 }
 
 void init_LED_ring() {
@@ -139,8 +140,8 @@ void setup() {
 }
 
 uint32_t get_compass_interval(int azimuth) {
-  azimuth = azimuth - 60;
-  unsigned long a = (azimuth >= 0) ? azimuth / (360.0 / N_INTERVALS) : (azimuth + 360) / (360.0 / N_INTERVALS);
+  azimuth = - azimuth;
+  unsigned long a = (azimuth >= 0) ? azimuth / (360.0 / N_INTERVALS) : (azimuth + 360) / (360 / N_INTERVALS);
   unsigned long r = a - (int)a;
   byte sexdec = 0;
   sexdec = (r >= .5) ? ceil(a) : floor(a);
@@ -171,13 +172,11 @@ void set_LED_direction(uint32_t compass_interval) {
   int len = NUMPIXELS / N_INTERVALS;
   // compass_interval = len - compass_interval - 1;
 
-  for (i = - floor(0.5 * len); i < ceil(0.5 * len); i++) {
+  for (i = - floor(0.5 * len) - 1; i < ceil(0.5 * len) + 1; i++) {
     int pixel = compass_interval * len + i;
-    Serial.println(pixel);
-    pixel = (pixel - 3 + NUMPIXELS) % NUMPIXELS;
+    pixel = (pixel + OFFSET + NUMPIXELS) % NUMPIXELS;
     pixels.setPixelColor(pixel, red);
   }
-  Serial.println();
   pixels.show();
 }
 
@@ -228,8 +227,8 @@ void show_disconnecting_LEDs() {
 }
 
 void handle_LED() {
-  // if (CONNECTION_STATE == "CONNECTED") {
-  if(1) {
+  if (CONNECTION_STATE == "CONNECTED") {
+  // if(1) {
     compass_interval = get_compass_interval_for_dir(hider_lat, hider_long,
                                                     seeker_lat, seeker_long);
     set_LED_direction(compass_interval);
@@ -240,5 +239,5 @@ void handle_LED() {
 
 void loop() {
   handle_LED();
-  // webSocket.loop();
+  webSocket.loop();
 }
