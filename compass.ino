@@ -187,7 +187,7 @@ float get_azimuth_lat_long(float lat_dir, float long_dir) {
 uint32_t get_compass_interval_for_dir(float hider_lat, float hider_long,
                                       float seeker_lat, float seeker_long) {
   float lat_dir_scaled = get_direction(seeker_lat, hider_lat, 1);
-  float long_dir_scaled = get_long_direction(seeker_long, hider_long, 1);
+  float long_dir_scaled = get_direction(seeker_long, hider_long, 1);
 
   float lat_long_az_scaled =
       get_azimuth_lat_long(lat_dir_scaled, long_dir_scaled);
