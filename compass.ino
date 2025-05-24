@@ -34,10 +34,12 @@ const char *websocket_server =
     "hide-and-seek-unxw.onrender.com"; // Example secure WebSocket server
 // const char* websocket_server = "echo.websocket.events";
 
-float hider_lat = 0; // 90 degree for +, 270 for -
-float hider_long = 50; // 0 degree for +, 180 for -
-float seeker_lat = 0;
-float seeker_long = 0;
+double hider_lat = 50; // 90 degree for +, 270 for -
+double hider_long = 0; // 0 degree for +, 180 for -
+double seeker_lat = 0;
+double seeker_long = 0;
+
+int azi = 0;
 
 QMC5883LCompass compass;
 WebSocketsClient webSocket;
@@ -140,7 +142,6 @@ void setup() {
 }
 
 uint32_t get_compass_interval(int azimuth) {
-  azimuth = - azimuth;
   unsigned long a = (azimuth >= 0) ? azimuth / (360.0 / N_INTERVALS) : (azimuth + 360) / (360 / N_INTERVALS);
   unsigned long r = a - (int)a;
   byte sexdec = 0;
@@ -175,19 +176,27 @@ float get_compass_azimuth() {
   return compass.getAzimuth();
 }
 
-float get_azimuth_lat_long(float lat_dir, float long_dir) {
-  float cos_theta = long_dir / sqrt(lat_dir * lat_dir + long_dir * long_dir);
-  float theta = acosf(cos_theta) * RADIANS;
+float get_azimuth_lat_long(double lat_dir, double long_dir) {
+  double cos_theta = long_dir / sqrt(lat_dir * lat_dir + long_dir * long_dir);
+  float theta = acos(cos_theta) * RADIANS;
   if (lat_dir < 0.0) {
     theta = 360.0 - theta;
-  }
-  return theta;
+  g
+g return -theta;
 }
 
-uint32_t get_compass_interval_for_dir(float hider_lat, float hider_long,
-                                      float seeker_lat, float seeker_long) {
-  float lat_dir_scaled = get_direction(seeker_lat, hider_lat, 1);
-  float long_dir_scaled = get_direction(seeker_long, hider_long, 1);
+uint32_t get_compass_interval_for_dir(double hl, double hlo,
+                                      double sl, double slo) {
+  Serial.print("Computing Location Stats, Hider:");
+  Serial.printf("%f.8", hl);
+  Serial.print(", ");
+  Serial.printf("%f.8", hlo);
+  Serial.print(", Seeker");
+  Serial.printf("%f.8", sl);
+  Serial.print(", ");
+  Serial.printf("%f.8\n", slo);
+  double lat_dir_scaled = get_direction(sl, hl, 1);
+  double long_dir_scaled = get_direction(slo, hlo, 1);
 
   float lat_long_az_scaled =
       get_azimuth_lat_long(lat_dir_scaled, long_dir_scaled);
@@ -213,7 +222,6 @@ void show_disconnecting_LEDs() {
 
 void handle_LED() {
   if (CONNECTION_STATE == "CONNECTED") {
-  // if(1) {
     compass_interval = get_compass_interval_for_dir(hider_lat, hider_long,
                                                     seeker_lat, seeker_long);
     set_LED_direction(compass_interval);
@@ -223,6 +231,6 @@ void handle_LED() {
 }
 
 void loop() {
-  handle_LED();
   webSocket.loop();
+  handle_LED();
 }
