@@ -9,7 +9,7 @@
 #define RADIANS 180.0 / PI
 #define SCALE 1000
 #define N_INTERVALS 12
-#define OFFSET 1
+#define OFFSET 5
 
 Adafruit_NeoPixel pixels =
     Adafruit_NeoPixel(NUMPIXELS, RING_PIN, NEO_GRB + NEO_KHZ800);
@@ -31,15 +31,12 @@ const char *CONNECTION_STATE = "UNKNOWN";
 const char *ssid = "Techbase Guest";
 const char *password = "Hackaburg25";
 const char *websocket_server =
-    "hide-and-seek-unxw.onrender.com"; // Example secure WebSocket server
-// const char* websocket_server = "echo.websocket.events";
+  "hide-and-seek-unxw.onrender.com";
 
 double hider_lat = 50; // 90 degree for +, 270 for -
 double hider_long = 0; // 0 degree for +, 180 for -
 double seeker_lat = 0;
 double seeker_long = 0;
-
-int azi = 0;
 
 QMC5883LCompass compass;
 WebSocketsClient webSocket;
@@ -142,11 +139,12 @@ void setup() {
 }
 
 uint32_t get_compass_interval(int azimuth) {
-  azimuth *= -1;
-  unsigned long a = (azimuth >= 0) ? azimuth / (360.0 / N_INTERVALS) : (azimuth + 360) / (360 / N_INTERVALS);
-  unsigned long r = a - (int)a;
-  byte sexdec = 0;
+  azimuth = 360 - azimuth;
+  float a = azimuth / (360.0 / N_INTERVALS);
+  float r = a - (int)a;
+  int sexdec = 0;
   sexdec = (r >= .5) ? ceil(a) : floor(a);
+  Serial.printf("Interval: %d\n", sexdec);
   return sexdec;
 }
 
@@ -177,34 +175,28 @@ float get_compass_azimuth() {
   return compass.getAzimuth();
 }
 
-float get_azimuth_lat_long(double lat_dir, double long_dir) {
-  double cos_theta = long_dir / sqrt(lat_dir * lat_dir + long_dir * long_dir);
-  float theta = acos(cos_theta) * RADIANS;
+float get_azimuth_lat_long(float lat_dir, float long_dir) {
+  float cos_theta = lat_dir / sqrt(lat_dir * lat_dir + long_dir * long_dir);
+  float theta = acosf(cos_theta) * RADIANS;
+  Serial.printf("Lat: %f, Long: %f, cos = %f, theta: %f\n", lat_dir, long_dir, cos_theta, theta);
   if (lat_dir < 0.0) {
     theta = 360.0 - theta;
   }
   return theta;
 }
 
-uint32_t get_compass_interval_for_dir(double hl, double hlo,
-                                      double sl, double slo) {
-  Serial.print("Computing Location Stats, Hider:");
-  Serial.printf("%f.8", hl);
-  Serial.print(", ");
-  Serial.printf("%f.8", hlo);
-  Serial.print(", Seeker");
-  Serial.printf("%f.8", sl);
-  Serial.print(", ");
-  Serial.printf("%f.8\n", slo);
-  double lat_dir_scaled = get_direction(sl, hl, 1);
-  double long_dir_scaled = get_direction(slo, hlo, 1);
+uint32_t get_compass_interval_for_dir(float hl, float hlo, float sl,
+                                      float slo) {
+  float lat_dir_scaled = get_direction(sl, hl, 1);
+  float long_dir_scaled = get_direction(slo, hlo, 1);
 
   float lat_long_az_scaled =
-      get_azimuth_lat_long(lat_dir_scaled, long_dir_scaled);
-  int az = get_compass_azimuth();
+    get_azimuth_lat_long(lat_dir_scaled, long_dir_scaled);
+  float az = get_compass_azimuth() + 180.0;
 
   float compass_az = lat_long_az_scaled + az;
   compass_az = compass_az > 360 ? compass_az - 360 : compass_az;
+  Serial.printf("Azimuth : %f\n", compass_az);
 
   return get_compass_interval(compass_az);
 }
