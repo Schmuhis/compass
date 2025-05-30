@@ -10,6 +10,7 @@
 #define SCALE 1000
 #define N_INTERVALS 12
 #define OFFSET 5
+#define BUTTON_PIN 23
 
 Adafruit_NeoPixel pixels =
     Adafruit_NeoPixel(NUMPIXELS, RING_PIN, NEO_GRB + NEO_KHZ800);
@@ -37,6 +38,8 @@ float hider_lat = 50; // 90 degree for +, 270 for -
 float hider_long = 0; // 0 degree for +, 180 for -
 float seeker_lat = 0;
 float seeker_long = 0;
+
+int button_state = HIGH;
 
 QMC5883LCompass compass;
 WebSocketsClient webSocket;
@@ -120,16 +123,32 @@ void init_LED_ring() {
   pixels.setBrightness(50);
 }
 
+void waiting_LED() {
+  for (j = 0; j < NUMPIXELS; j++) {
+    pixels.setPixelColor(j, red);
+  }
+  pixels.show();
+  delay(500);
+  for (j = 0; j < NUMPIXELS; j++) {
+    pixels.setPixelColor(j, blue);
+  }
+  pixels.show();
+  delay(500);
+}
+
 void setup() {
   Serial.begin(9600);
   init_compass();
   init_LED_ring();
+
+  // Setup calibration button
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
   WiFi.begin(ssid, password);
 
   Serial.print("Connecting to WiFi");
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+    waiting_LED();
   }
   Serial.println("\nWiFi connected");
 
@@ -223,7 +242,42 @@ void handle_LED() {
   }
 }
 
+void calibration_LEDs() {
+  for (i = 0; i < 2; i++) {
+    for (j = 0; j < NUMPIXELS; j++) {
+      pixels.setPixelColor(j, background_colour);
+    }
+    pixels.show();
+    delay(500);
+    for (j = 0; j < NUMPIXELS; j++) {
+      pixels.setPixelColor(j, snake_colour);
+    }
+    pixels.show();
+    delay(500);
+  }
+}
+
+void calibrate_compass() {
+  Serial.println("Started calibrating...");
+  calibration_LEDs();
+  for (j = 0; j < NUMPIXELS; j++) {
+    pixels.setPixelColor(j, red);
+  }
+  pixels.show();
+  compass.calibrate();
+  calibration_LEDs();
+  Serial.println("Calibration done.");
+}
+
 void loop() {
-  webSocket.loop();
-  handle_LED();
+  button_state = digitalRead(BUTTON_PIN);
+
+  if (button_state == LOW) {
+    Serial.println(button_state);
+    calibrate_compass();
+    button_state = HIGH;
+  } else {
+    webSocket.loop();
+    handle_LED();
+  }
 }
