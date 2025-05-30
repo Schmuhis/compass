@@ -33,10 +33,10 @@ const char *password = "Hackaburg25";
 const char *websocket_server =
   "hide-and-seek-unxw.onrender.com";
 
-double hider_lat = 50; // 90 degree for +, 270 for -
-double hider_long = 0; // 0 degree for +, 180 for -
-double seeker_lat = 0;
-double seeker_long = 0;
+float hider_lat = 50; // 90 degree for +, 270 for -
+float hider_long = 0; // 0 degree for +, 180 for -
+float seeker_lat = 0;
+float seeker_long = 0;
 
 QMC5883LCompass compass;
 WebSocketsClient webSocket;
